@@ -1,4 +1,5 @@
 import requests
+import json
 from config import API_KEY, ENDPOINTS
 
 class BochaAPIClient:
@@ -51,15 +52,27 @@ class BochaAPIClient:
             response = requests.post(
                 ENDPOINTS['web_search'],
                 headers=self.headers,
-                json=payload
+                data=json.dumps(payload)  # 使用data参数并序列化为JSON
             )
             
             # 处理常见错误
-            if response.status_code == 403:
-                print("错误: 账户余额不足，请充值")
+            if response.status_code == 400:
+                if "Missing parameter" in response.text:
+                    print("错误: 请求参数缺失")
+                elif "API KEY is missing" in response.text:
+                    print("错误: Header缺少Authorization")
+                return None
+            elif response.status_code == 401:
+                print("错误: API KEY无效")
+                return None
+            elif response.status_code == 403:
+                print("错误: 账户余额不足，请前往 https://open.bochaai.com 充值")
                 return None
             elif response.status_code == 429:
                 print("错误: 达到请求频率限制")
+                return None
+            elif response.status_code == 500:
+                print("错误: 服务器内部错误")
                 return None
             
             response.raise_for_status()
