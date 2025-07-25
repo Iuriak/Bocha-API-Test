@@ -179,12 +179,31 @@ def main():
                 st.code(json.dumps(request_body, indent=2, ensure_ascii=False), language="json")
             
         
+        # 创建按钮列
+        col1_1, col1_2 = st.columns(2)
+        
         # 发送请求按钮
-        if st.button("发送请求", type="primary"):
+        with col1_1:
+            search_clicked = st.button("发送请求", type="primary")
+        
+        # Reranker按钮（初始状态禁用）
+        with col1_2:
+            # 使用会话状态存储搜索结果
+            if 'search_results' not in st.session_state:
+                st.session_state.search_results = None
+                
+            # 只有当有搜索结果时才启用Reranker按钮
+            rerank_clicked = st.button(
+                "语义重排",
+                disabled=not st.session_state.search_results,
+                help="对搜索结果进行语义重排序，提升相关性"
+            )
+        
+        if search_clicked:
             if not query:
                 st.error("请输入搜索关键词")
             else:
-                with st.spinner("请求中..."):
+                with st.spinner("搜索中..."):
                     client = BochaAPIClient()
                     results = client.web_search(
                         query=query,
@@ -195,8 +214,29 @@ def main():
                         exclude=exclude or None
                     )
                     
+                    # 存储搜索结果
+                    st.session_state.search_results = results
                     # 在右侧显示响应
                     response_container.json(results)
+        
+        if rerank_clicked and st.session_state.search_results:
+            with st.spinner("重排中..."):
+                # 从搜索结果中提取snippets
+                web_pages = st.session_state.search_results.get('data', {}).get('webPages', {}).get('value', [])
+                documents = [page.get('snippet', '') for page in web_pages if page.get('snippet')]
+                
+                if documents:
+                    client = BochaAPIClient()
+                    rerank_results = client.semantic_rerank(
+                        query=query,
+                        documents=documents,
+                        model="gte-rerank",
+                        return_documents=True
+                    )
+                    
+                    if rerank_results:
+                        # 在右侧显示重排结果
+                        response_container.json(rerank_results)
 
 if __name__ == "__main__":
     main()
