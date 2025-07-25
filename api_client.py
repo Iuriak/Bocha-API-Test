@@ -109,20 +109,83 @@ class BochaAPIClient:
             print(f"Error in agent search: {e}")
             return None
 
-    def semantic_rerank(self, query, documents, **params):
-        """语义重排API"""
+    def semantic_rerank(self, query, documents, model="gte-rerank", top_n=None, return_documents=False):
+        """语义重排API
+        
+        使用博查语义重排模型对文档列表进行排序，根据查询与文档的语义相关性给出排序结果和得分。
+        
+        Args:
+            query (str): 用户的搜索词，可以是自然语言
+            documents (list): 需要排序的文档数组，最多50个文档
+            model (str, optional): 排序使用的模型版本. 默认为"gte-rerank"
+                可选值:
+                - bocha-semantic-reranker-cn (邀测中)
+                - bocha-semantic-reranker-en (邀测中)
+                - gte-rerank (已开放，限时免费)
+            top_n (int, optional): 排序返回的Top文档数量。默认与documents数量相同
+            return_documents (bool, optional): 排序结果是否返回文档原文。默认False
+        
+        Returns:
+            dict: 排序结果，包含模型信息和排序后的文档列表（带相关性得分）
+                得分范围0-1，含义如下：
+                0.75~1: 高度相关
+                0.5~0.75: 相关但缺乏细节
+                0.2~0.5: 部分相关
+                0.1~0.2: 略微相关
+                0~0.1: 不相关
+        """
         try:
+            # 验证参数
+            if not query or not documents:
+                print("错误：query和documents参数不能为空")
+                return None
+                
+            if len(documents) > 50:
+                print("错误：documents数量不能超过50个")
+                return None
+                
+            # 构建请求体
+            payload = {
+                "model": model,
+                "query": query,
+                "documents": documents,
+            }
+            
+            # 添加可选参数
+            if top_n is not None:
+                payload["top_n"] = top_n
+            if return_documents is not None:
+                payload["return_documents"] = return_documents
+                
             response = requests.post(
                 ENDPOINTS['semantic_rerank'],
                 headers=self.headers,
-                json={
-                    'query': query,
-                    'documents': documents,
-                    **params
-                }
+                json=payload
             )
+            
+            # 处理常见错误
+            if response.status_code == 400:
+                if "Missing parameter" in response.text:
+                    print("错误: 请求参数缺失")
+                elif "API KEY is missing" in response.text:
+                    print("错误: Header缺少Authorization")
+                return None
+            elif response.status_code == 401:
+                print("错误: API KEY无效")
+                return None
+            elif response.status_code == 403:
+                print("错误: 账户余额不足，请前往 https://open.bochaai.com 充值")
+                return None
+            elif response.status_code == 429:
+                print("错误: 达到请求频率限制")
+                return None
+            elif response.status_code == 500:
+                print("错误: 服务器内部错误")
+                return None
+            
             response.raise_for_status()
             return response.json()
+            
         except requests.exceptions.RequestException as e:
-            print(f"Error in semantic rerank: {e}")
+            print(f"语义重排出错: {e}")
             return None
