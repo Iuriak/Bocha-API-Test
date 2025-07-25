@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 from api_client import BochaAPIClient
-from config import API_KEY
+from config import BASE_URL
 
 def display_json(data):
     """格式化显示JSON数据"""
@@ -98,14 +98,6 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    # 创建侧边栏
-    with st.sidebar:
-        st.title("博查API测试工具")
-        st.header("配置")
-        # API密钥配置
-        api_key = st.text_input("API Key", value=API_KEY, type="password")
-        base_url = st.text_input("Base URL", value="https://api.bochaai.com")
-    
     # 创建容器来控制主界面宽度
     with st.container():
         st.header("Web Search API")
@@ -119,12 +111,14 @@ def main():
         response_container = st.container()
         
     with col1:
+        api_key = st.text_input("API Key", placeholder="API KEY请先前往https://open.bochaai.com获取", type="password")
+
         st.subheader("请求参数")
 
         # Full Request URL
         st.text_input(
             "Request URL",
-            value="{}/v1/web-search".format(base_url),
+            value="{}/v1/web-search".format(BASE_URL),
             disabled=True
         )
 
@@ -206,6 +200,7 @@ def main():
                 with st.spinner("搜索中..."):
                     client = BochaAPIClient()
                     results = client.web_search(
+                        apiKey=api_key,
                         query=query,
                         freshness=freshness,
                         summary=summary,
@@ -228,6 +223,7 @@ def main():
                 if documents:
                     client = BochaAPIClient()
                     rerank_results = client.semantic_rerank(
+                        apiKey=api_key,
                         query=query,
                         documents=documents,
                         model="gte-rerank",

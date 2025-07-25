@@ -19,7 +19,7 @@ class BochaAPIClient:
             print(f"Error querying balance: {e}")
             return None
     
-    def web_search(self, query, freshness="noLimit", summary=False, count=10, include=None, exclude=None):
+    def web_search(self, apiKey, query, freshness="noLimit", summary=False, count=10, include=None, exclude=None):
         """Web搜索API
         
         Args:
@@ -48,10 +48,15 @@ class BochaAPIClient:
                 payload["include"] = include
             if exclude:
                 payload["exclude"] = exclude
+
+            headers = {
+                'Authorization': f'Bearer {apiKey}',
+                'Content-Type': 'application/json'
+            }
                 
             response = requests.post(
                 ENDPOINTS['web_search'],
-                headers=self.headers,
+                headers=headers,
                 data=json.dumps(payload)  # 使用data参数并序列化为JSON
             )
             
@@ -109,7 +114,7 @@ class BochaAPIClient:
             print(f"Error in agent search: {e}")
             return None
 
-    def semantic_rerank(self, query, documents, model="gte-rerank", top_n=None, return_documents=False):
+    def semantic_rerank(self, apiKey, query, documents, model="gte-rerank", top_n=None, return_documents=False):
         """语义重排API
         
         使用博查语义重排模型对文档列表进行排序，根据查询与文档的语义相关性给出排序结果和得分。
@@ -156,6 +161,11 @@ class BochaAPIClient:
                 payload["top_n"] = top_n
             if return_documents is not None:
                 payload["return_documents"] = return_documents
+
+            headers = {
+                'Authorization': f'Bearer {apiKey}',
+                'Content-Type': 'application/json'
+            }
                 
             response = requests.post(
                 ENDPOINTS['semantic_rerank'],
